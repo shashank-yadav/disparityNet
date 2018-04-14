@@ -1,3 +1,5 @@
+import better_exceptions
+
 import numpy as np
 import tensorflow as tf
 
@@ -6,12 +8,12 @@ rnn = tf.contrib.rnn
 class EmbeddingsRefiner(object):
     """ Class to refine embeddings before matching
     """
-    
-    def __init__(self):
+
+    def __init__(self, embedding_dimensions=128):
         self.num_refinement_steps = 5
         self.use_left_refinement = True
         self.use_right_refinement = True
-        self.embedding_dimensions = 128
+        self.embedding_dimensions = embedding_dimensions
 
     def refine(self, left_hypercolumn, right_hypercolumns):
         """ refine hypercolumn embeddings of both left and right image
@@ -32,10 +34,13 @@ class EmbeddingsRefiner(object):
         :param left_hypercolumn - [batch_size, 128] tensor (point feature)
         :param right_hypercolumns - [L, batch_size, 128]
         """
+        # assert(tf.shape(left_hypercolumn) == tf.shape(right_hypercolumns[0]))
+        batch_size = tf.shape(left_hypercolumn)[0]
+
         cell = rnn.BasicLSTMCell(self.embedding_dimensions)
         prev_state = cell.zero_state(batch_size, tf.float32)   # state[0] is c, state[1] is h
 
-         for step in xrange(self.num_refinement_steps):
+        for step in xrange(self.num_refinement_steps):
             output, state = cell(left_hypercolumn, prev_state)  # output: (batch_size, 128)
 
             h_k = tf.add(output, left_hypercolumn) # (batch_size, 128)
@@ -62,3 +67,32 @@ class EmbeddingsRefiner(object):
 
         right_features_refined = tf.add(tf.stack(right_hypercolumns), tf.stack(outputs))
         return right_features_refined
+
+
+def main():
+    embedding_dimensions = 32
+    refiner = EmbeddingsRefiner(embedding_dimensions=embedding_dimensions)
+
+    sess = tf.InteractiveSession()
+    L = 10
+    batch_size = 4
+
+    left_hypercolumn = tf.constant(np.random.randn(batch_size, embedding_dimensions), dtype=tf.float32)
+    right_hypercolumns = [None] * L
+    for i in xrange(L):
+        right_hypercolumns[i] = tf.constant(np.random.randn(batch_size, embedding_dimensions), dtype=tf.float32)
+
+    left_feature_refined, right_features_refined = refiner.refine(left_hypercolumn, right_hypercolumns)
+    sess.run(tf.global_variables_initializer())
+
+    left_f, right_fs = sess.run([left_feature_refined, right_features_refined])
+
+    print(left_f.shape)
+    print(len(right_fs))
+    print(right_fs[0].shape)
+
+    sess.close()
+
+
+if __name__ == '__main__':
+    main()
