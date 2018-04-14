@@ -15,7 +15,7 @@ class EmbeddingsRefiner(object):
 
     def refine(self, left_hypercolumns, right_hypercolumns):
         """ refine hypercolumn embeddings of both left and right image
-        :param left_hypercolumns - [batch_size, 128]
+        :param left_hypercolumns - length L list of [batch_size, 128] tensors
         :param right_hypercolumns - length L list of [batch_size, 128] tensors
         """
         right_features_refined = self.fce_right(right_hypercolumns) # (L, batch_size, 128)
